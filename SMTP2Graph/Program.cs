@@ -27,25 +27,27 @@ Console.WriteLine("Starting SMTP listener loop...");
 mail_listener.Start();
 while (true)
 {
-    try {
-        var client = mail_listener.AcceptTcpClient();
-        Console.WriteLine("Accepting connection, attempting to process...");
-        _ = Task.Run(() => {
+    var client = mail_listener.AcceptTcpClient();
+    Console.WriteLine("Accepting connection, attempting to process...");
+    _ = Task.Run(() => {
+        try
+        {
             client.NoDelay = true;
             var stream = client.GetStream();
             var sw = new StreamWriter(stream);
             var sr = new StreamReader(stream);
             sw.AutoFlush = true;
-            sw.WriteLine($"220 Who is it...?");
+            sw.Write($"220 Who are you...?\r\n");
             HandleConnection(client, stream, sw, sr);
-        });
-    }
-    catch (Exception e)
-    {
-        Console.WriteLine("An error occured in the SMTP listener loop:");
-        Console.WriteLine(e.Message);
-        Console.WriteLine(e.StackTrace);
-    }
+        }
+        catch (Exception e)
+        {
+            if (client.Connected) client.Close();
+            Console.WriteLine("An error occured in the SMTP listener loop:");
+            Console.WriteLine(e.Message);
+            Console.WriteLine(e.StackTrace);
+        }
+    });
 }
 
 void HandleConnection(TcpClient client, Stream stream, StreamWriter sw, StreamReader sr)
@@ -58,33 +60,33 @@ void HandleConnection(TcpClient client, Stream stream, StreamWriter sw, StreamRe
     while (true)
     {
         var msg = sr.ReadLine();
-        if (msg.StartsWith("HELO"))
+        if (msg.StartsWith("HELO") || msg.StartsWith("EHLO"))
         {
-            sw.WriteLine("250 Whatchu want?");
+            sw.Write("250 Whatchu want?\r\n");
             continue;
         }
         if (msg.StartsWith("MAIL FROM:"))
         {
             From = Regex.Match(msg, "<(.*)>").Groups[1].Value;
-            sw.WriteLine("250 You again?!");
+            sw.Write("250 You again?!\r\n");
             continue;
         }
         if (msg.StartsWith("RCPT TO:"))
         {
             To.Add(Regex.Match(msg, "<(.*)>").Groups[1].Value);
-            sw.WriteLine("250 Ok fine...");
+            sw.Write("250 Ok fine...\r\n");
             continue;
         }
         if (msg.StartsWith("DATA"))
         {
-            sw.WriteLine("354 And whats so important that you have to bother me...?");
+            sw.Write("354 And whats so important that you have to bother me...?\r\n");
             (BType, Subject, Body) = ReadData(sr);
-            sw.WriteLine("250 Oh yea, that was *very* important... SMH.");
+            sw.Write("250 Oh yea, that was *very* important... SMH.\r\n");
             continue;
         }
         if (msg.StartsWith("QUIT"))
         {
-            sw.WriteLine("221 Bye, don't talk to me...");
+            sw.Write("221 Bye, don't talk to me...\r\n");
             break;
         }
     }
