@@ -1,4 +1,4 @@
-name: Deploy Image
+name: Deploy / Build Image
 on:
   push:
     branches: [ master ]
